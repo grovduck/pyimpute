@@ -70,7 +70,7 @@ def test_load_targets():
 
     target_xs, raster_info = load_targets(explanatory_rasters)
     assert sorted(raster_info.keys()) == ["crs", "shape", "transform"]
-    assert target_xs.shape == (38304, 7)
+    assert len(target_xs) == 7
 
 
 def test_stratified_sample_raster():

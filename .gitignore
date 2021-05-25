@@ -6,3 +6,10 @@ examples/_*
 *.egg-info
 dist/*
 build/*
+
+# Gregory
+_readme.txt
+env/*
+.vscode/*
+*.swp
+*.tif

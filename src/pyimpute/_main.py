@@ -102,39 +102,33 @@ def load_targets(explanatory_rasters):
     raster_info : dict of raster info
     """
 
-    explanatory_raster_arrays = []
+    expl = []
     transform = None
     shape = None
     crs = None
 
     for raster in explanatory_rasters:
         logger.debug(raster)
-        with rasterio.open(raster) as src:
-            ar = src.read(1)  # TODO band num?
+        src = rasterio.open(raster)
+        expl.append(src)
 
-            # Save or check the geotransform
-            if not transform:
-                transform = src.transform
-            else:
-                assert transform == src.transform
+        # Save or check the geotransform
+        if not transform:
+            transform = src.transform
+        else:
+            assert transform == src.transform
 
-            # Save or check the shape
-            if not shape:
-                shape = ar.shape
-            else:
-                assert shape == ar.shape
+        # Save or check the shape
+        if not shape:
+            shape = (src.height, src.width)
+        else:
+            assert shape == (src.height, src.width)
 
-            # Save or check the geotransform
-            if not crs:
-                crs = src.crs
-            else:
-                assert crs == src.crs
-
-        # Flatten in one dimension
-        arf = ar.flatten()
-        explanatory_raster_arrays.append(arf)
-
-    expl = np.array(explanatory_raster_arrays).T
+        # Save or check the geotransform
+        if not crs:
+            crs = src.crs
+        else:
+            assert crs == src.crs
 
     raster_info = {
         "transform": transform,
@@ -156,9 +150,10 @@ def impute(
     """
     Parameters
     ----------
-    target_xs: Array of explanatory variables for which to predict responses
+    target_xs: List of explanatory variables as rasterio.Dataset instances
     clf: instance of a scikit-learn Classifier
-    raster_info: dictionary of raster attributes with key 'gt', 'shape' and 'srs'
+    raster_info: dictionary of raster attributes with keys 'src', 'affine',
+        'shape' and 'crs'
 
     Options
     -------
@@ -212,15 +207,14 @@ def impute(
 
         for chunk in range(chunks):
             logger.debug("Writing chunk %d of %d" % (chunk + 1, chunks))
+
+            # Read window from explanatory rasters
             row = chunk * linechunk
             if row + linechunk > shape[0]:
                 linechunk = shape[0] - row
-            # in 1D space
-            start = shape[1] * row
-            end = start + shape[1] * linechunk
-            line = target_xs[start:end, :]
-
             window = ((row, row + linechunk), (0, shape[1]))
+            arrs = [r.read(1, window=window).flatten() for r in target_xs]
+            line = np.array(arrs).T
 
             # Predict
             responses = clf.predict(line)
